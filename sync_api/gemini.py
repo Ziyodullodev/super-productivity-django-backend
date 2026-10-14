@@ -27,6 +27,33 @@ class GeminiError(Exception):
     pass
 
 
+class GeminiRateLimitError(GeminiError):
+    """HTTP 429 (quota exceeded). Carries a cooldown hint for the router."""
+
+    def __init__(self, message: str, retry_seconds: float | None = None, is_daily: bool = False):
+        super().__init__(message)
+        self.retry_seconds = retry_seconds
+        self.is_daily = is_daily
+
+
+def _parse_429(detail: str) -> tuple[float | None, bool]:
+    """Extract retryDelay seconds and whether it's a per-day quota from a 429 body."""
+    retry_seconds = None
+    is_daily = "PerDay" in detail or "per day" in detail.lower()
+    try:
+        data = json.loads(detail)
+        for d in (data.get("error", {}).get("details") or []):
+            rd = d.get("retryDelay")
+            if isinstance(rd, str) and rd.endswith("s"):
+                retry_seconds = float(rd[:-1])
+            quota_id = str(d.get("violations", d)) + str(d)
+            if "PerDay" in quota_id:
+                is_daily = True
+    except (ValueError, TypeError, AttributeError):
+        pass
+    return retry_seconds, is_daily
+
+
 def _post(model: str, api_key: str, parts: list, timeout: int = 60) -> dict:
     url = f"{API_ROOT}/{model}:generateContent?key={api_key}"
     body = {
@@ -44,8 +71,13 @@ def _post(model: str, api_key: str, parts: list, timeout: int = 60) -> dict:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="ignore")[:300]
-        raise GeminiError(f"Gemini HTTP {exc.code}: {detail}") from exc
+        detail = exc.read().decode("utf-8", errors="ignore")[:600]
+        if exc.code == 429:
+            retry_seconds, is_daily = _parse_429(detail)
+            raise GeminiRateLimitError(
+                f"Gemini 429 ({model}): quota", retry_seconds, is_daily
+            ) from exc
+        raise GeminiError(f"Gemini HTTP {exc.code} ({model}): {detail[:200]}") from exc
     except urllib.error.URLError as exc:
         raise GeminiError(f"Gemini ulanmadi: {exc}") from exc
 

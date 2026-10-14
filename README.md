@@ -43,14 +43,22 @@ Inline tugmalar: Bajarildi / O'chirish / Boshqa projectga ko'chirish.
 ```
 TELEGRAM_BOT_TOKEN=123456:ABC...        # @BotFather
 TELEGRAM_WEBHOOK_SECRET=<maxfiy-satr>   # masalan: openssl rand -base64 24
-GEMINI_API_KEY=AIza...                  # Google AI Studio
-GEMINI_MODEL=gemini-2.0-flash           # ixtiyoriy
+# Gemini: bitta yoki bir nechta kalit (vergul bilan) — limit (429) da avtomatik almashtiriladi
+GEMINI_API_KEYS=AIza_key1,AIza_key2     # yoki bitta: GEMINI_API_KEY=AIza...
+# Modellar prioriteti (vergul bilan): avval barcha kalitlarda 1-model, keyin 2-model
+GEMINI_MODELS=gemini-flash-latest,gemini-flash-lite-latest
 PUBLIC_BASE_URL=https://<user>.pythonanywhere.com
 SP_SYNC_USERNAME=admin                  # bot qaysi WebDAV akkauntga yozadi
 SP_SYNC_FILE_PATH=/sync-data.json
 SP_SYNC_ENCRYPTION_PASSWORD=            # agar SP'da sync encryption YOQILGAN bo'lsa
 SP_BOT_CLIENT_ID=tgbot0                 # op-log vector-clock uchun barqaror id
 ```
+
+**Rotation:** `GEMINI_API_KEYS` × `GEMINI_MODELS` dan nomzodlar ro'yxati tuziladi
+(model-major: `k1·model1, k2·model1, k1·model2, k2·model2`). Bir juftlik 429 (limit)
+bersa, u `retryDelay` / kunlik kvota muddatiga cooldown'ga qo'yilib (holat bazada —
+`GeminiQuota`), keyingisiga o'tiladi. Hammasi band bo'lsagina foydalanuvchiga xato
+qaytadi.
 
 ### O'rnatish (server konsolida, virtualenv ichida)
 ```

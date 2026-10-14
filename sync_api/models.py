@@ -43,3 +43,19 @@ class SyncFile(models.Model):
             }
         )
         return obj
+
+
+class GeminiQuota(models.Model):
+    """Per (api-key, model) rate-limit cooldown state for the Gemini router.
+
+    ``provider_id`` is ``"<key_index>:<model>"`` — the raw API key is never
+    stored, only its position in the configured key list.
+    """
+
+    provider_id = models.CharField(max_length=160, unique=True, db_index=True)
+    cooldown_until = models.FloatField(default=0.0)  # epoch seconds; 0 = available
+    last_error = models.CharField(max_length=200, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.provider_id} until={self.cooldown_until}"

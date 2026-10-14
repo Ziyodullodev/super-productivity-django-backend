@@ -175,8 +175,18 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # These are read from environment / .env. See django_backend/README.md.
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_WEBHOOK_SECRET = os.environ.get('TELEGRAM_WEBHOOK_SECRET', '')
+
+
+def _csv(value):
+    return [v.strip() for v in value.split(',') if v.strip()]
+
+
+# Gemini: one or more API keys (rotated on rate limit) and a priority list of
+# models (tried model-major across all keys). Back-compat single values remain.
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
+GEMINI_API_KEYS = _csv(os.environ.get('GEMINI_API_KEYS', '')) or ([GEMINI_API_KEY] if GEMINI_API_KEY else [])
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-flash-latest')
+GEMINI_MODELS = _csv(os.environ.get('GEMINI_MODELS', '')) or [GEMINI_MODEL]
 
 # Which WebDAV account + sync file the bot reads/writes, and (if sync encryption
 # is ON in the app) the encryption password so it can decrypt/re-encrypt.

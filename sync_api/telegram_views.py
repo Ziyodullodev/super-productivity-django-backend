@@ -17,7 +17,7 @@ from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from . import gemini, sp_sync, telegram
+from . import gemini, gemini_router, sp_sync, telegram
 
 log = logging.getLogger("sync_api.telegram")
 
@@ -30,8 +30,8 @@ def _cfg():
     return {
         "token": token,
         "secret": getattr(settings, "TELEGRAM_WEBHOOK_SECRET", ""),
-        "gemini_key": getattr(settings, "GEMINI_API_KEY", ""),
-        "gemini_model": getattr(settings, "GEMINI_MODEL", "gemini-2.0-flash"),
+        "gemini_keys": getattr(settings, "GEMINI_API_KEYS", []),
+        "gemini_models": getattr(settings, "GEMINI_MODELS", ["gemini-flash-latest"]),
         "sp_user": getattr(settings, "SP_SYNC_USERNAME", "admin"),
         "sp_path": getattr(settings, "SP_SYNC_FILE_PATH", "/sync-data.json"),
         "sp_pw": getattr(settings, "SP_SYNC_ENCRYPTION_PASSWORD", "") or None,
@@ -102,7 +102,7 @@ def _handle_message(cfg, msg):
     # voice note
     voice = msg.get("voice") or msg.get("audio")
     if voice:
-        if not cfg["gemini_key"]:
+        if not cfg["gemini_keys"]:
             telegram.send_message(cfg["token"], chat_id, "⚠️ GEMINI_API_KEY sozlanmagan.")
             return
         try:
@@ -111,7 +111,10 @@ def _handle_message(cfg, msg):
             mime = voice.get("mime_type") or "audio/ogg"
             sf, env, flags = sp_sync.load_envelope(cfg["sp_user"], cfg["sp_path"], cfg["sp_pw"])
             names = [p["title"] for p in sp_sync.list_projects(env)]
-            parsed = gemini.transcribe_voice(audio, mime, names, cfg["gemini_key"], cfg["gemini_model"])
+            parsed = gemini_router.call_with_rotation(
+                cfg["gemini_keys"], cfg["gemini_models"],
+                lambda key, model: gemini.transcribe_voice(audio, mime, names, key, model),
+            )
             task_id, reply = _add_from_parsed(cfg, parsed)
             telegram.send_message(cfg["token"], chat_id, reply, reply_markup=_task_buttons(task_id))
         except (sp_sync.SpSyncError, gemini.GeminiError) as exc:
@@ -122,11 +125,14 @@ def _handle_message(cfg, msg):
     if text:
         try:
             parsed = {"title": text, "project": None, "due_today": False}
-            if cfg["gemini_key"]:
+            if cfg["gemini_keys"]:
                 sf, env, flags = sp_sync.load_envelope(cfg["sp_user"], cfg["sp_path"], cfg["sp_pw"])
                 names = [p["title"] for p in sp_sync.list_projects(env)]
                 try:
-                    parsed = gemini.parse_text(text, names, cfg["gemini_key"], cfg["gemini_model"])
+                    parsed = gemini_router.call_with_rotation(
+                        cfg["gemini_keys"], cfg["gemini_models"],
+                        lambda key, model: gemini.parse_text(text, names, key, model),
+                    )
                 except gemini.GeminiError:
                     parsed = {"title": text, "project": None, "due_today": False}
             task_id, reply = _add_from_parsed(cfg, parsed)
