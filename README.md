@@ -32,3 +32,34 @@ Ilova ichida:
    - **Password:** `admin123`
    - **Sync folder path:** `/`
 4. **Test connection** tugmasini bosing -> Muvaffaqiyatli bog'lanadi!
+
+## Telegram bot (ovozli task + Gemini)
+
+Bot ovozli/matnli xabarni Gemini orqali vazifaga aylantiradi va to'g'ridan-to'g'ri
+SP sync fayliga (`sync-data.json`) yozadi — mos projectga (topilmasa Inbox'ga).
+Inline tugmalar: Bajarildi / O'chirish / Boshqa projectga ko'chirish.
+
+### `.env` (django_backend/.env)
+```
+TELEGRAM_BOT_TOKEN=123456:ABC...        # @BotFather
+TELEGRAM_WEBHOOK_SECRET=<maxfiy-satr>   # masalan: openssl rand -base64 24
+GEMINI_API_KEY=AIza...                  # Google AI Studio
+GEMINI_MODEL=gemini-2.0-flash           # ixtiyoriy
+PUBLIC_BASE_URL=https://<user>.pythonanywhere.com
+SP_SYNC_USERNAME=admin                  # bot qaysi WebDAV akkauntga yozadi
+SP_SYNC_FILE_PATH=/sync-data.json
+SP_SYNC_ENCRYPTION_PASSWORD=            # agar SP'da sync encryption YOQILGAN bo'lsa
+SP_BOT_CLIENT_ID=tgbot0                 # op-log vector-clock uchun barqaror id
+```
+
+### O'rnatish (server konsolida, virtualenv ichida)
+```
+pip install -r requirements.txt
+python manage.py set_telegram_webhook      # webhookni ro'yxatdan o'tkazadi
+```
+Webhook endpoint: `POST /telegram/webhook/<secret>/` (secret `.env`dan; Telegram
+`X-Telegram-Bot-Api-Secret-Token` header orqali ham tekshiriladi).
+
+> Eslatma: bot ishlashi uchun SP sync **v2** formatida bo'lishi kerak (standart).
+> Sync encryption yoqilgan bo'lsa, `SP_SYNC_ENCRYPTION_PASSWORD` to'g'ri bo'lishi
+> shart (bot faylni o'sha parol bilan ochib/qayta shifrlaydi).

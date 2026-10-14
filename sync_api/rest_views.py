@@ -83,6 +83,7 @@ def list_synced_tasks(request):
 def serve_frontend(request, path=''):
     """
     Serves the pre-built Angular frontend from dist/browser.
+    Robust against SPA relative path requests.
     """
     dist_dir = os.path.join(settings.BASE_DIR, '..', 'dist', 'browser')
     if not os.path.exists(dist_dir):
@@ -91,12 +92,26 @@ def serve_frontend(request, path=''):
             'hint': 'Run `npm run buildFrontend:prodWeb` to compile the frontend.'
         })
 
+    # Direct match in dist/browser
     target_file = os.path.join(dist_dir, path) if path else os.path.join(dist_dir, 'index.html')
-    
     if os.path.exists(target_file) and os.path.isfile(target_file):
         return FileResponse(open(target_file, 'rb'))
-    
-    # SPA routing fallback
+
+    # If the request was for a nested asset like /admin/... or sub-routes, check relative to dist_dir
+    base_name = os.path.basename(path)
+    asset_extensions = ('.js', '.css', '.png', '.svg', '.woff', '.woff2', '.ico', '.json', '.webmanifest')
+    if any(base_name.endswith(ext) for ext in asset_extensions):
+        fallback_file = os.path.join(dist_dir, base_name)
+        if os.path.exists(fallback_file) and os.path.isfile(fallback_file):
+            return FileResponse(open(fallback_file, 'rb'))
+        assets_file = os.path.join(dist_dir, 'assets', base_name)
+        if os.path.exists(assets_file) and os.path.isfile(assets_file):
+            return FileResponse(open(assets_file, 'rb'))
+        media_file = os.path.join(dist_dir, 'media', base_name)
+        if os.path.exists(media_file) and os.path.isfile(media_file):
+            return FileResponse(open(media_file, 'rb'))
+
+    # SPA routing fallback for regular pages
     index_file = os.path.join(dist_dir, 'index.html')
     if os.path.exists(index_file):
         return FileResponse(open(index_file, 'rb'))

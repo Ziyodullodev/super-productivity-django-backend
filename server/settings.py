@@ -15,6 +15,28 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# --- Minimal .env loader (stdlib only; no python-dotenv dependency) ---------
+import os
+
+
+def _load_dotenv(path):
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            for raw in fh:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                # Existing real env vars win over the file.
+                os.environ.setdefault(key, value)
+    except FileNotFoundError:
+        pass
+
+
+_load_dotenv(BASE_DIR / ".env")
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
@@ -147,6 +169,27 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+
+# --- Telegram bot + Gemini + Super Productivity sync integration ------------
+# These are read from environment / .env. See django_backend/README.md.
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_WEBHOOK_SECRET = os.environ.get('TELEGRAM_WEBHOOK_SECRET', '')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
+
+# Which WebDAV account + sync file the bot reads/writes, and (if sync encryption
+# is ON in the app) the encryption password so it can decrypt/re-encrypt.
+SP_SYNC_USERNAME = os.environ.get('SP_SYNC_USERNAME', 'admin')
+SP_SYNC_FILE_PATH = os.environ.get('SP_SYNC_FILE_PATH', '/sync-data.json')
+SP_SYNC_ENCRYPTION_PASSWORD = os.environ.get('SP_SYNC_ENCRYPTION_PASSWORD', '')
+# Stable client id the bot uses in the op-log vector clock (keep short & fixed).
+SP_BOT_CLIENT_ID = os.environ.get('SP_BOT_CLIENT_ID', 'tgbot0')
+
+# Public base URL of this server, used when registering the Telegram webhook.
+PUBLIC_BASE_URL = os.environ.get(
+    'PUBLIC_BASE_URL', 'https://wnxizxviziyodev.pythonanywhere.com'
+)
 
 
 # Email

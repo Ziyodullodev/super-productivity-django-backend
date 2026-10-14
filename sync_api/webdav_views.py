@@ -86,6 +86,18 @@ def webdav_handler(request: HttpRequest, path: str = ""):
     # 2. Authentication
     user = get_auth_user(request)
     if not user:
+        if request.method == 'GET':
+            import os
+            base_name = os.path.basename(path)
+            asset_extensions = ('.js', '.css', '.png', '.svg', '.woff', '.woff2', '.ico', '.json', '.webmanifest')
+            if any(base_name.endswith(ext) for ext in asset_extensions):
+                from .rest_views import serve_frontend
+                return serve_frontend(request, path)
+            if not path or path == '/':
+                return HttpResponse(
+                    "<h3>Super Productivity WebDAV Endpoint</h3><p>Holati: <b>Faol (Active)</b></p><p>Super Productivity sozlamalarida kiritish uchun manzil: <code>http://127.0.0.1:8000/webdav/</code></p>",
+                    content_type="text/html; charset=utf-8"
+                )
         res = HttpResponse("Unauthorized WebDAV access", status=401)
         res['WWW-Authenticate'] = 'Basic realm="Super Productivity WebDAV"'
         return add_cors_and_dav_headers(res)

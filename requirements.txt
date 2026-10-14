@@ -2,3 +2,6 @@ asgiref==3.12.1
 Django==6.1.2
 django-cors-headers==4.9.0
 sqlparse==0.6.0
+# Telegram bot: reproduce Super Productivity's sync-file crypto (AES-256-GCM + Argon2id)
+cryptography==44.0.0
+argon2-cffi==23.1.0
